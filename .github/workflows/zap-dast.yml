@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   zap-dast:
@@ -38,7 +37,7 @@ jobs:
       with:
         target: 'http://localhost:3000'
         fail_action: false
-        cmd_options: '-a -T 5 -j -r report_html.html -w zap_report.md -x zap_report.xml -s zap.sarif'
+        cmd_options: '-a -T 5 -j -r report_html.html -w zap_report.md'
 
     - name: Upload ZAP HTML Report
       uses: actions/upload-artifact@v4
@@ -51,15 +50,3 @@ jobs:
       with:
         name: zap-report-md
         path: zap_report.md
-
-    - name: Upload ZAP SARIF Report
-      uses: actions/upload-artifact@v4
-      with:
-        name: zap-report-sarif
-        path: zap.sarif
-
-    - name: Upload ZAP Report to GitHub Security tab
-      if: always()
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: zap.sarif
