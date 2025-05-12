@@ -18,15 +18,16 @@ jobs:
         run: |
           docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
 
-      - name: Wait for Juice Shop to start
+      - name: Wait for Juice Shop to Start
         run: |
           sleep 10
           curl --retry 5 --retry-delay 5 --fail http://localhost:3000
 
-      - name: Create ZAP Report Files
+      - name: Copy ZAP Rules to Working Directory
         run: |
+          cp .zap/rules.tsv rules.tsv
           touch report_json.json report_md.md report_html.html
-          chmod a+w report_json.json report_md.md report_html.html
+          chmod a+w rules.tsv report_json.json report_md.md report_html.html
 
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.10.0
@@ -38,7 +39,7 @@ jobs:
             -r report_html.html
             -a
             -T 5
-            -c zap-config.conf
+            -c rules.tsv
             -d
 
       - name: Upload ZAP HTML Report
