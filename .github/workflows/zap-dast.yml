@@ -32,6 +32,11 @@ jobs:
           sleep 2
         done
 
+    - name: Create ZAP config file
+      run: |
+        echo "ignore=90004" >> zap-config.conf  # Spectre
+        echo "ignore=90005" >> zap-config.conf  # Sec-Fetch headers
+
     - name: Run ZAP Baseline Scan (with filters)
       uses: zaproxy/action-baseline@v0.10.0
       with:
@@ -44,11 +49,8 @@ jobs:
           -r report_html.html
           -w zap_report.md
           -c zap-config.conf
-
-    - name: Create ZAP config file
-      run: |
-        echo "ignore=90004" >> zap-config.conf  # Spectre
-        echo "ignore=90005" >> zap-config.conf  # Sec-Fetch headers
+          -I
+          -v  # Enable verbose mode to show more details in the reports
 
     - name: Upload ZAP HTML Report
       uses: actions/upload-artifact@v4
