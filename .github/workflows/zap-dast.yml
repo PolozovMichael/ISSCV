@@ -7,9 +7,13 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
-  zap-scan:
-    name: Run OWASP ZAP DAST Scan
+  zap-dast:
+    name: Run OWASP ZAP Baseline DAST Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -19,9 +23,12 @@ jobs:
     - name: Start Juice Shop Container
       run: |
         docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
-        echo "Waiting for Juice Shop to start..."
+        echo "Waiting for Juice Shop to become available..."
         for i in {1..30}; do
-          curl -s http://localhost:3000 > /dev/null && break
+          if curl -s --head http://localhost:3000 | grep "200 OK" > /dev/null; then
+            echo "Juice Shop is up!"
+            break
+          fi
           echo "Still waiting..."
           sleep 2
         done
@@ -31,10 +38,28 @@ jobs:
       with:
         target: 'http://localhost:3000'
         fail_action: false
-        cmd_options: '-a -T 5' # aggressive scan, timeout=5min
+        cmd_options: '-a -T 5 -j -r report_html.html -w zap_report.md -x zap_report.xml -s zap.sarif'
 
-    - name: Upload ZAP Report
+    - name: Upload ZAP HTML Report
       uses: actions/upload-artifact@v4
       with:
-        name: zap-report
+        name: zap-report-html
         path: report_html.html
+
+    - name: Upload ZAP Markdown Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-report-md
+        path: zap_report.md
+
+    - name: Upload ZAP SARIF Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-report-sarif
+        path: zap.sarif
+
+    - name: Upload ZAP Report to GitHub Security tab
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: zap.sarif
