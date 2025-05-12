@@ -32,12 +32,23 @@ jobs:
           sleep 2
         done
 
-    - name: Run ZAP Baseline Scan
+    - name: Run ZAP Baseline Scan (with filters)
       uses: zaproxy/action-baseline@v0.10.0
       with:
         target: 'http://localhost:3000'
         fail_action: false
-        cmd_options: '-a -T 5 -j -r report_html.html -w zap_report.md'
+        cmd_options: >
+          -a
+          -T 5
+          -j
+          -r report_html.html
+          -w zap_report.md
+          -c zap-config.conf
+
+    - name: Create ZAP config file
+      run: |
+        echo "ignore=90004" >> zap-config.conf  # Spectre
+        echo "ignore=90005" >> zap-config.conf  # Sec-Fetch headers
 
     - name: Upload ZAP HTML Report
       uses: actions/upload-artifact@v4
