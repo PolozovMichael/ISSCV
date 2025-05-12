@@ -1,2 +1,2 @@
-90004	IGNORE	Spectre-related issue
-90005	IGNORE	Browser Sec-Fetch headers
+90004	IGNORE	False positive on site isolation warning
+90005	IGNORE	Expected in local dev
