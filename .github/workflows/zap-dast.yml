@@ -1,61 +1,52 @@
-name: ZAP Baseline Scan
+name: "OWASP ZAP DAST Scan"
 
 on:
   push:
-    branches:
-      - master
+    branches: [ "master" ]
   pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  zap_scan:
+  zap-dast:
+    name: Run OWASP ZAP Baseline DAST Scan
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Start Juice Shop (Background)
-        run: |
-          docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
+    - name: Start Juice Shop Container
+      run: |
+        docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
+        echo "Waiting for Juice Shop to become available..."
+        for i in {1..30}; do
+          if curl -s --head http://localhost:3000 | grep "200 OK" > /dev/null; then
+            echo "Juice Shop is up!"
+            break
+          fi
+          echo "Still waiting..."
+          sleep 2
+        done
 
-      - name: Wait for Juice Shop to Start
-        run: |
-          sleep 10
-          curl --retry 5 --retry-delay 5 --fail http://localhost:3000
+    - name: Run ZAP Baseline Scan
+      uses: zaproxy/action-baseline@v0.10.0
+      with:
+        target: 'http://localhost:3000'
+        fail_action: false
+        cmd_options: '-a -T 5 -j -r report_html.html -w zap_report.md'
 
-      - name: Copy ZAP Rules to Working Directory
-        run: |
-          cp .zap/rules.tsv rules.tsv
-          touch report_json.json report_md.md report_html.html
-          chmod a+w rules.tsv report_json.json report_md.md report_html.html
+    - name: Upload ZAP HTML Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-report-html
+        path: report_html.html
 
-      - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.10.0
-        with:
-          target: 'http://localhost:3000'
-          cmd_options: >-
-            -J report_json.json
-            -w report_md.md
-            -r report_html.html
-            -a
-            -T 5
-            -c rules.tsv
-            -d
-
-      - name: Upload ZAP HTML Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report-html
-          path: report_html.html
-
-      - name: Upload ZAP Markdown Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report-md
-          path: report_md.md
-
-      - name: Upload ZAP JSON Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report-json
-          path: report_json.json
+    - name: Upload ZAP Markdown Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-report-md
+        path: zap_report.md
