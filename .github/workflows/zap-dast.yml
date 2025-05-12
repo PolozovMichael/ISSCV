@@ -24,11 +24,11 @@ jobs:
         docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
         echo "Waiting for Juice Shop to become available..."
         for i in {1..30}; do
-          if curl -s --head http://localhost:3000 | grep "200 OK" > /dev/null; then
-            echo "Juice Shop is up!"
-            break
+          if curl -s http://localhost:3000 | grep -q "OWASP Juice Shop"; then
+          echo "Juice Shop is ready!"
+          break
           fi
-          echo "Still waiting..."
+          echo "Waiting for Juice Shop to be ready..."
           sleep 2
         done
 
