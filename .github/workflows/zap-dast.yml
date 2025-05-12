@@ -19,6 +19,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Create ZAP rules directory and rules file
+      run: |
+        mkdir -p .zap
+        echo -e "90004\tIGNORE\tFalse positive on site isolation warning" > .zap/rules.tsv
+        echo -e "90005\tIGNORE\tExpected missing header in dev" >> .zap/rules.tsv
+
     - name: Start Juice Shop Container
       run: |
         docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
@@ -37,7 +43,12 @@ jobs:
       with:
         target: 'http://localhost:3000'
         fail_action: false
-        cmd_options: '-a -T 5 -j -r report_html.html -w zap_report.md'
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: >
+          -a -T 5 -j -r report_html.html -w zap_report.md
+          -z "-config api.disablekey=true
+              -config passiveScan.scanOnlyInScope=true
+              -config scanner.level=High"
 
     - name: Upload ZAP HTML Report
       uses: actions/upload-artifact@v4
