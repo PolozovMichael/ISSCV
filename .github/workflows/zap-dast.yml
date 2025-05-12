@@ -45,12 +45,11 @@ jobs:
         cmd_options: >
           -a
           -T 5
-          -j
+          -J report_json.json
+          -w report_md.md
           -r report_html.html
-          -w zap_report.md
           -c zap-config.conf
-          -I
-          -v  # Enable verbose mode to show more details in the reports
+          -d  # Enable debug output
 
     - name: Upload ZAP HTML Report
       uses: actions/upload-artifact@v4
@@ -62,4 +61,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: zap-report-md
-        path: zap_report.md
+        path: report_md.md
