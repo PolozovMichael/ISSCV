@@ -1,0 +1,91 @@
+name: "Full Security Pipeline"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-check:
+    name: Dependency Scan with OWASP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "Juice Shop"
+          path: "."
+          format: "HTML"
+          out: "dependency-report"
+
+      - name: Upload Dependency Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-dependency-report
+          path: dependency-report/dependency-check-report.html
+
+  zap-dast:
+    name: Run OWASP ZAP DAST Scan
+    runs-on: ubuntu-latest
+    needs: dependency-check
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Create ZAP rules file
+      run: |
+        mkdir -p .zap
+        echo -e "90004\tIGNORE\tSite Isolation FP" > .zap/rules.tsv
+        echo -e "90005\tIGNORE\tMissing header in dev" >> .zap/rules.tsv
+
+    - name: Deploy Juice Shop in Docker (Temporary)
+      run: |
+        docker run -d -p 3000:3000 --name juice-shop bkimminich/juice-shop
+        echo "Waiting for Juice Shop..."
+        for i in {1..30}; do
+          if curl -s --head http://localhost:3000 | grep "200 OK" > /dev/null; then
+            echo "Juice Shop ready!"
+            break
+          fi
+          sleep 2
+        done
+
+    - name: Run ZAP Baseline Scan
+      uses: zaproxy/action-baseline@v0.10.0
+      with:
+        target: 'http://localhost:3000'
+        fail_action: false
+        rules_file_name: '.zap/rules.tsv'
+        cmd_options: >
+          -a -T 5 -j -r report_html.html -w zap_report.md
+          -z "-config api.disablekey=true
+              -config passiveScan.scanOnlyInScope=true
+              -config scanner.level=High"
+
+    - name: Upload ZAP Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-dast-reports
+        path: |
+          report_html.html
+          zap_report.md
+
+    - name: Send Notification to Slack
+      if: always()
+      uses: slackapi/slack-github-action@v1.25.0
+      with:
+        payload: |
+          {
+            "text": ":warning: Security pipeline completed. Check results for vulnerabilities. Project: Juice Shop."
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
